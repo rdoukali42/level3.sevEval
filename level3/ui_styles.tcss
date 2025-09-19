@@ -1,0 +1,63 @@
+# LEVEL3 Interactive UI Styles
+
+.title {
+    text-align: center;
+    text-style: bold;
+    margin: 1;
+    padding: 1;
+    background: $primary;
+    color: white;
+}
+
+.description {
+    text-align: center;
+    margin: 1;
+    color: $text-muted;
+}
+
+.model-button, .metric-button, .dataset-button {
+    margin: 1;
+    padding: 1;
+    border: solid $primary;
+    width: 100%;
+}
+
+.model-button:hover, .metric-button:hover, .dataset-button:hover {
+    background: $primary 20%;
+}
+
+.results-table {
+    border: solid $primary;
+    margin: 1;
+    padding: 1;
+    min-height: 10;
+    background: $surface;
+}
+
+#selected_metrics {
+    min-height: 8;
+    background: $panel;
+    border: solid $primary;
+}
+
+Container {
+    margin: 1;
+    padding: 1;
+}
+
+Button {
+    margin: 1;
+}
+
+Input {
+    margin: 1;
+    border: solid $primary;
+}
+
+ProgressBar {
+    margin: 1;
+}
+
+TextArea {
+    border: solid $primary;
+}

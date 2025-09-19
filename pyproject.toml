@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "level3-security-eval"
+version = "0.1.0"
+description = "LEVEL3 Security Evaluation Framework for LLMs - By Arkadia, Developed by Reda"
+authors = [
+    {name = "Reda", email = "reda@example.com"},
+]
+maintainers = [
+    {name = "Arkadia Team", email = "team@arkadia.com"},
+]
+keywords = ["llm", "security", "evaluation", "jailbreak", "prompt-injection", "safety"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "requests>=2.31.0",
+    "transformers>=4.30.0",
+    "torch>=2.0.0",
+    "rich>=13.0.0",
+    "click>=8.0.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "pandas>=1.5.0",
+    "numpy>=1.21.0",
+    "tqdm>=4.64.0",
+    "colorama>=0.4.6",
+]
+
+[project.optional-dependencies]
+charts = ["matplotlib>=3.5.0", "plotly>=5.0.0"]
+ollama = ["ollama>=0.1.0"]
+openai = ["openai>=1.0.0"]
+dev = [
+    "black",
+    "isort",
+    "flake8",
+    "pytest>=7.0.0",
+    "pytest-cov",
+    "mypy",
+]
+
+[project.scripts]
+level3 = "level3.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/rdoukali42/level3-security-eval"
+Documentation = "https://level3-security-eval.readthedocs.io/"
+Repository = "https://github.com/rdoukali42/level3-security-eval"
+Issues = "https://github.com/rdoukali42/level3-security-eval/issues"
+
+[tool.setuptools]
+packages = ["level3", "level3.models", "level3.metrics", "level3.datasets", "level3.reporting", "level3.utils"]
+
+[tool.setuptools.package-data]
+level3 = ["reporting/templates/*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true

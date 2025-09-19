@@ -1,0 +1,55 @@
+# Testing & Benchmarking .gitignore
+
+# Test artifacts
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+
+# Test coverage reports
+.coverage
+coverage.xml
+htmlcov/
+
+# Test results and logs
+test_results/
+benchmark_results/
+performance_logs/
+*.log
+
+# Large test datasets (keep small fixtures only)
+validation/test_datasets/large_*.json
+validation/test_datasets/*_full_*.json
+validation/test_datasets/*.csv
+
+# Model checkpoints and cached models (if any)
+models/
+checkpoints/
+cache/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Benchmark artifacts
+benchmarks/results/
+benchmarks/cache/
+performance/metrics/
+performance/cache/
