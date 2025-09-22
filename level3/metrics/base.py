@@ -21,15 +21,62 @@ class HuggingFaceMetric(BaseMetric):
         """Lazy load the HuggingFace pipeline."""
         if self._pipeline is None:
             try:
-                from transformers import pipeline
-                self._pipeline = pipeline(
-                    "text-classification" if "sentiment" in self.model_id.lower() else "text-generation",
-                    model=self.model_id,
-                    device_map="auto",
-                    torch_dtype="auto"
+                import os
+                import sys
+                
+                # Set environment variables before any imports
+                os.environ["TOKENIZERS_PARALLELISM"] = "false"
+                os.environ["OMP_NUM_THREADS"] = "1"
+                os.environ["MKL_NUM_THREADS"] = "1"
+                os.environ["OPENBLAS_NUM_THREADS"] = "1"
+                os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+                os.environ["NUMEXPR_NUM_THREADS"] = "1"
+                os.environ["TRANSFORMERS_OFFLINE"] = "0"
+                os.environ["HF_HUB_OFFLINE"] = "0"
+                
+                # Disable multiprocessing entirely
+                import multiprocessing
+                if hasattr(multiprocessing, 'set_start_method'):
+                    try:
+                        multiprocessing.set_start_method('spawn', force=True)
+                    except RuntimeError:
+                        pass  # Already set
+                
+                from transformers import pipeline, logging, AutoTokenizer, AutoModelForSequenceClassification
+                
+                # Suppress all warnings
+                logging.set_verbosity_error()
+                import warnings
+                warnings.filterwarnings("ignore")
+                
+                # Load model and tokenizer separately to avoid pipeline subprocess issues
+                tokenizer = AutoTokenizer.from_pretrained(
+                    self.model_id,
+                    use_fast=False,  # Disable fast tokenizers
+                    local_files_only=False
                 )
+                
+                model = AutoModelForSequenceClassification.from_pretrained(
+                    self.model_id,
+                    torch_dtype="auto",
+                    device_map=None,  # No device mapping
+                    local_files_only=False
+                )
+                
+                # Create pipeline with explicit components
+                self._pipeline = pipeline(
+                    "text-classification",
+                    model=model,
+                    tokenizer=tokenizer,
+                    device=-1,  # Force CPU
+                    return_all_scores=True,
+                    framework="pt"
+                )
+                
             except ImportError:
                 raise ImportError("transformers package is required for HuggingFace metrics")
+            except Exception as e:
+                raise RuntimeError(f"Failed to load pipeline for {self.model_id}: {e}")
         return self._pipeline
 
     def _preprocess_input(self, test_case: SecurityTestCase, model_output: str) -> str:

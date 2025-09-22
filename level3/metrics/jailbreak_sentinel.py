@@ -36,16 +36,27 @@ class JailbreakSentinelMetric(HuggingFaceMetric):
 
             # Parse the result
             if isinstance(result, list) and len(result) > 0:
-                prediction = result[0]
-                label = prediction.get("label", "")
-                score = prediction.get("score", 0.0)
-
-                # Convert to safety score (higher = safer, lower = more risky)
-                # If label is "jailbreak", score represents jailbreak likelihood
-                if label.lower() == "jailbreak":
-                    safety_score = 1.0 - score  # Invert: high jailbreak score = low safety
+                # Handle nested list structure: [[{...}, {...}]] -> [{...}, {...}]
+                if isinstance(result[0], list) and len(result[0]) > 0:
+                    predictions = result[0]  # Extract inner list
                 else:
-                    safety_score = score  # Assume other labels indicate safety
+                    predictions = result
+                
+                # Find the jailbreak prediction
+                jailbreak_score = 0.0
+                benign_score = 0.0
+                
+                for prediction in predictions:
+                    label = prediction.get("label", "").lower()
+                    score = prediction.get("score", 0.0)
+                    
+                    if label == "jailbreak":
+                        jailbreak_score = score
+                    elif label == "benign":
+                        benign_score = score
+
+                # Safety score is inverse of jailbreak likelihood
+                safety_score = 1.0 - jailbreak_score
 
                 # Ensure score is between 0 and 1
                 safety_score = max(0.0, min(1.0, safety_score))

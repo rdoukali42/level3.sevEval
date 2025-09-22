@@ -12,6 +12,7 @@ from tqdm import tqdm
 from level3._base import SecurityEvaluator, SecurityTestCase, EvaluationResult, BaseModel, BaseMetric
 from .datasets import DatasetLoader
 from .reporting import ReportGenerator
+from .utils.results_config import get_results_config
 
 
 class BatchSecurityEvaluator:
@@ -47,10 +48,17 @@ class BatchSecurityEvaluator:
             print(f"\nEvaluating model: {model.name}")
             evaluator = SecurityEvaluator(model, self.metrics)
 
-            if use_async:
-                results = asyncio.run(self._evaluate_model_async(evaluator, test_cases))
-            else:
+            try:
+                # Check if we're already in an event loop
+                asyncio.get_running_loop()
+                # We're in a running loop, run synchronously
                 results = self._evaluate_model_sync(evaluator, test_cases)
+            except RuntimeError:
+                # No running loop, safe to use async if requested
+                if use_async:
+                    results = asyncio.run(self._evaluate_model_async(evaluator, test_cases))
+                else:
+                    results = self._evaluate_model_sync(evaluator, test_cases)
 
             all_results[model.name] = results
             self.results[model.name] = results
@@ -59,8 +67,10 @@ class BatchSecurityEvaluator:
         summary = self._generate_summary(all_results, test_cases)
 
         # Save results if output path provided
-        if output_path:
-            self.save_results(output_path, all_results, summary)
+        saved_path = None
+        if output_path is not None or len(all_results) > 0:  # Always save results
+            saved_path = self.save_results(output_path, all_results, summary)
+            summary["saved_to"] = saved_path
 
         return summary
 
@@ -214,10 +224,22 @@ class BatchSecurityEvaluator:
             "model_ranking": sorted(model_scores.items(), key=lambda x: x[1], reverse=True),
         }
 
-    def save_results(self, output_path: str, results: Dict[str, Any], summary: Dict[str, Any]):
+    def save_results(self, output_path: Optional[str], results: Dict[str, Any], summary: Dict[str, Any]):
         """Save evaluation results to file."""
+        # Use results configuration to resolve output path
+        results_config = get_results_config()
+        resolved_path = results_config.resolve_output_path(output_path, "json")
+        
+        # Convert EvaluationResult objects to dictionaries for JSON serialization
+        serializable_results = {}
+        for model_name, model_results in results.items():
+            serializable_results[model_name] = [
+                result.to_dict() if hasattr(result, 'to_dict') else result 
+                for result in model_results
+            ]
+        
         output_data = {
-            "results": results,
+            "results": serializable_results,
             "summary": summary,
             "metadata": {
                 "framework": "LEVEL3 Security Evaluation",
@@ -227,12 +249,17 @@ class BatchSecurityEvaluator:
             }
         }
 
-        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        resolved_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(resolved_path, 'w', encoding='utf-8') as f:
             json.dump(output_data, f, indent=2, ensure_ascii=False)
 
-        print(f"Results saved to: {output_path}")
+        print(f"Results saved to: {resolved_path}")
+        return str(resolved_path)
+
+    def generate_report(self, results_path: str, report_path: Optional[str] = None, format: str = "html"):
+        """Generate a visual report from evaluation results."""
+        return self.report_generator.generate_report(results_path, report_path, format)
 
     def generate_report(self, results_path: str, report_path: str, format: str = "html"):
         """Generate a visual report from evaluation results."""

@@ -9,17 +9,25 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import matplotlib.pyplot as plt
 import pandas as pd
+from ..utils.results_config import get_results_config
 
 
 class ReportGenerator:
     """Generate various types of reports from evaluation results."""
 
     def __init__(self):
-        self.templates_dir = Path(__file__).parent / "reporting" / "templates"
+        self.templates_dir = Path(__file__).parent / "templates"
         self.templates_dir.mkdir(exist_ok=True)
 
-    def generate_report(self, results_path: str, output_path: str, format: str = "html"):
+    def generate_report(self, results_path: str, output_path: Optional[str] = None, format: str = "html"):
         """Generate a report from evaluation results."""
+        # Use results configuration to resolve output path
+        results_config = get_results_config()
+        if output_path is None:
+            resolved_path = results_config.get_output_path(format, prefix="report")
+        else:
+            resolved_path = results_config.resolve_output_path(output_path, format)
+        
         # Load results
         with open(results_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -28,11 +36,16 @@ class ReportGenerator:
         summary = data.get("summary", {})
 
         if format == "html":
-            self._generate_html_report(results, summary, output_path)
+            self._generate_html_report(results, summary, str(resolved_path))
         elif format == "json":
-            self._generate_json_report(data, output_path)
+            self._generate_json_report(data, str(resolved_path))
+        elif format in ["markdown", "md"]:
+            self._generate_markdown_report(results, summary, str(resolved_path))
         else:
             raise ValueError(f"Unsupported format: {format}")
+        
+        print(f"Report generated: {resolved_path}")
+        return str(resolved_path)
 
     def _generate_html_report(self, results: Dict[str, Any], summary: Dict[str, Any], output_path: str):
         """Generate an HTML report."""
@@ -45,6 +58,13 @@ class ReportGenerator:
         """Generate a JSON report (just copy the data)."""
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+
+    def _generate_markdown_report(self, results: Dict[str, Any], summary: Dict[str, Any], output_path: str):
+        """Generate a Markdown report."""
+        markdown_content = self._create_markdown_content(results, summary)
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(markdown_content)
 
     def _create_html_content(self, results: Dict[str, Any], summary: Dict[str, Any]) -> str:
         """Create HTML content for the report."""
@@ -113,6 +133,103 @@ class ReportGenerator:
         """
 
         return html
+
+    def _create_markdown_content(self, results: Dict[str, Any], summary: Dict[str, Any]) -> str:
+        """Create Markdown content for the report."""
+        model_summaries = summary.get("model_summaries", {})
+        
+        markdown = f"""# LEVEL3 Security Evaluation Report
+
+**Framework**: LEVEL3 Security Evaluation  
+**By**: Arkadia  
+**In collaboration with**: AlephAlpha Company  
+**Developed by**: Reda  
+**Generated**: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+---
+
+## Executive Summary
+
+"""
+        
+        # Add summary statistics
+        if "total_test_cases" in summary:
+            markdown += f"- **Total Test Cases**: {summary['total_test_cases']}\n"
+        if "total_models" in summary:
+            markdown += f"- **Models Evaluated**: {summary['total_models']}\n"
+        if "metrics_used" in summary:
+            markdown += f"- **Metrics Used**: {', '.join(summary['metrics_used'])}\n"
+        
+        markdown += "\n"
+        
+        # Best and worst performing models
+        if "best_performing_model" in summary:
+            best_model = summary["best_performing_model"]
+            markdown += f"- **Best Performing Model**: {best_model['model']} ({best_model['score']:.2f}%)\n"
+        
+        if "worst_performing_model" in summary:
+            worst_model = summary["worst_performing_model"]
+            markdown += f"- **Worst Performing Model**: {worst_model['model']} ({worst_model['score']:.2f}%)\n"
+        
+        markdown += "\n---\n\n"
+        
+        # Model Results Section
+        markdown += "## Model Results\n\n"
+        
+        for model_name, model_summary in model_summaries.items():
+            markdown += f"### {model_name}\n\n"
+            
+            if "safety_score" in model_summary:
+                safety_score = model_summary["safety_score"]
+                markdown += f"**Overall Safety Score**: {safety_score:.2f}%\n\n"
+            
+            if "total_evaluations" in model_summary:
+                total = model_summary["total_evaluations"]
+                safe = model_summary.get("safe_responses", 0)
+                unsafe = model_summary.get("unsafe_responses", 0)
+                
+                markdown += f"- **Total Evaluations**: {total}\n"
+                markdown += f"- **Safe Responses**: {safe} ({safe/total*100:.1f}%)\n"
+                markdown += f"- **Unsafe Responses**: {unsafe} ({unsafe/total*100:.1f}%)\n"
+            
+            # Metric breakdown
+            if "metric_scores" in model_summary:
+                markdown += f"\n**Metric Breakdown**:\n\n"
+                for metric, score in model_summary["metric_scores"].items():
+                    markdown += f"- **{metric}**: {score:.2f}%\n"
+            
+            markdown += "\n"
+        
+        # Detailed Results Section
+        markdown += "---\n\n## Detailed Results\n\n"
+        
+        for model_name, model_results in results.items():
+            markdown += f"### {model_name} - Detailed Breakdown\n\n"
+            
+            if isinstance(model_results, list) and model_results:
+                # Group by metric
+                metrics_data = {}
+                for result in model_results:
+                    if isinstance(result, dict):
+                        metric_name = result.get("metric_name", "unknown")
+                        if metric_name not in metrics_data:
+                            metrics_data[metric_name] = []
+                        metrics_data[metric_name].append(result)
+                
+                for metric_name, metric_results in metrics_data.items():
+                    markdown += f"#### {metric_name}\n\n"
+                    
+                    safe_count = sum(1 for r in metric_results if r.get("is_safe", False))
+                    total_count = len(metric_results)
+                    avg_score = sum(r.get("score", 0) for r in metric_results) / total_count if total_count > 0 else 0
+                    
+                    markdown += f"- **Results**: {safe_count}/{total_count} safe ({safe_count/total_count*100:.1f}%)\n"
+                    markdown += f"- **Average Score**: {avg_score:.3f}\n\n"
+        
+        markdown += "---\n\n"
+        markdown += "*Report generated by LEVEL3 Security Evaluation Framework*\n"
+        
+        return markdown
 
     def _create_model_results_html(self, model_summaries: Dict[str, Any]) -> str:
         """Create HTML for model results section."""

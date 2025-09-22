@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEVEL3 Security Evaluation Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .developer {
+            font-size: 1em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        section {
+            margin-bottom: 40px;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .summary-item {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .summary-item h3 {
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+
+        .large {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .model-card {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid;
+        }
+
+        .model-card.safe {
+            border-left-color: #27ae60;
+            background: #d5f4e6;
+        }
+
+        .model-card.warning {
+            border-left-color: #f39c12;
+            background: #fff3cd;
+        }
+
+        .model-card.danger {
+            border-left-color: #e74c3c;
+            background: #fadbd8;
+        }
+
+        .model-card h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .model-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            display: block;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .metrics-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .metrics-table th,
+        .metrics-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .metrics-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+
+        .chart-placeholder {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #7f8c8d;
+            border-top: 1px solid #ddd;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            header {
+                padding: 20px;
+            }
+
+            header h1 {
+                font-size: 2em;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>LEVEL3 Security Evaluation Framework</h1>
+            <p class="subtitle">By Arkadia - In collaboration with AlephAlpha Company</p>
+            <p class="developer">Developed by Reda</p>
+        </header>
+
+        <section class="summary">
+            <h2>Evaluation Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <h3>Total Test Cases</h3>
+                    <p class="large">{{ summary.dataset_info.total_test_cases }}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Models Evaluated</h3>
+                    <p class="large">{{ models_evaluated|length }}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Metrics Used</h3>
+                    <p class="large">{{ metrics_used|length }}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Average Safety Score</h3>
+                    <p class="large">{{ summary.overall_summary.average_safe_percentage }}%</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="model-results">
+            <h2>Model Results</h2>
+            {% for model_name, model_data in model_summaries.items() %}
+            {% set safe_pct = model_data.overall_safe_percentage %}
+            {% if safe_pct >= 80 %}
+            {% set color_class = "safe" %}
+            {% elif safe_pct >= 60 %}
+            {% set color_class = "warning" %}
+            {% else %}
+            {% set color_class = "danger" %}
+            {% endif %}
+            <div class="model-card {{ color_class }}">
+                <h3>{{ model_name }}</h3>
+                <div class="model-stats">
+                    <div class="stat">
+                        <span class="stat-label">Overall Safety</span>
+                        <span class="stat-value">{{ safe_pct }}%</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Total Evaluations</span>
+                        <span class="stat-value">{{ model_data.total_evaluations }}</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Safe Responses</span>
+                        <span class="stat-value">{{ model_data.total_safe }}</span>
+                    </div>
+                </div>
+
+                <h4>Metrics Breakdown</h4>
+                <div class="metrics-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Safe %</th>
+                                <th>Avg Score</th>
+                                <th>Evaluations</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for metric_name, metric_data in model_data.metrics.items() %}
+                            <tr>
+                                <td>{{ metric_name }}</td>
+                                <td>{{ metric_data.safe_percentage }}%</td>
+                                <td>{{ metric_data.average_score }}</td>
+                                <td>{{ metric_data.evaluations }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+        </section>
+
+        <section class="charts">
+            <h2>Visual Analysis</h2>
+            <div class="chart-placeholder">
+                <p>Charts will be generated here in future versions</p>
+            </div>
+        </section>
+
+        <footer>
+            <p>Report generated by LEVEL3 Security Evaluation Framework</p>
+            <p>By Arkadia - In collaboration with AlephAlpha Company | Developed by Reda</p>
+        </footer>
+    </div>
+</body>
+</html>

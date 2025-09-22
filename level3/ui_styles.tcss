@@ -40,7 +40,9 @@
     border: solid $primary;
 }
 
-Container {
+ScrollableContainer {
+    border: solid $primary;
+    height: 15;
     margin: 1;
     padding: 1;
 }

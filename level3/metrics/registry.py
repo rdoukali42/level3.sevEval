@@ -21,6 +21,7 @@ class MetricRegistry:
 
     def _register_builtin_metrics(self):
         """Register all built-in metrics."""
+        # Real HuggingFace metrics
         self.register("jailbreak_sentinel", JailbreakSentinelMetric)
         self.register("nemo_guard", NemoGuardMetric)
 

@@ -28,13 +28,14 @@ from typing import List, Dict, Any, Optional
 
 # Textual imports for mouse-supporting TUI
 from textual.app import App, ComposeResult
-from textual.containers import Container, Vertical, Horizontal
+from textual.containers import Container, Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Header, Footer, Select, Button, Input, Label, ProgressBar, TextArea, Static
 from textual.screen import Screen
 from textual import events
 from textual.binding import Binding
 
 from .models import OpenRouterModelRegistry, OllamaModelRegistry
+from .models.mock_model import MockModelRegistry
 from .metrics import list_available_metrics, create_metric
 from .evaluator import BatchSecurityEvaluator
 from .datasets import DatasetLoader
@@ -104,7 +105,9 @@ def evaluate(model, model_name, metrics, dataset, output, async_eval):
         # Display results
         _display_results(results, model_name, metric_names)
 
-        if output:
+        if "saved_to" in results:
+            console.print(f"\n[green]✓[/green] Results saved to: {results['saved_to']}")
+        elif output:
             console.print(f"\n[green]✓[/green] Results saved to: {output}")
 
     except Exception as e:
@@ -128,14 +131,14 @@ def create_sample_dataset(output_path, num_samples):
 
 @cli.command()
 @click.argument("results_path")
-@click.argument("report_path")
-@click.option("--format", "-f", default="html", type=click.Choice(["html", "json"]))
+@click.argument("report_path", required=False)
+@click.option("--format", "-f", default="html", type=click.Choice(["html", "json", "markdown"]))
 def report(results_path, report_path, format):
     """Generate a visual report from evaluation results."""
     try:
         evaluator = BatchSecurityEvaluator([], [])  # Empty for report generation
-        evaluator.generate_report(results_path, report_path, format)
-        console.print(f"[green]✓[/green] Report generated: {report_path}")
+        saved_path = evaluator.generate_report(results_path, report_path, format)
+        console.print(f"[green]✓[/green] Report generated: {saved_path}")
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise click.Abort()
@@ -269,7 +272,7 @@ def _interactive_setup():
 
     # Dataset selection
     console.print("\n[bold]Dataset Selection:[/bold]")
-    default_dataset = "level3/datasets/promptLib"
+    default_dataset = "level3/datasets/promptlib"
     if Path(default_dataset).exists():
         dataset = Prompt.ask("Enter dataset path", default=default_dataset)
     else:
@@ -284,6 +287,8 @@ def _create_model(model_type: str, model_name: str):
         return OpenRouterModelRegistry.create_model(model_name)
     elif model_type == "ollama":
         return OllamaModelRegistry.create_model(model_name)
+    elif model_type == "mock":
+        return MockModelRegistry.create_model(model_name)
     else:
         raise ValueError(f"Unknown model type: {model_type}")
 
@@ -308,7 +313,7 @@ def _display_results(results: dict, model_name: str, metric_names: List[str]):
     else:
         color = "red"
 
-    result_text.append(".1f", style=f"bold {color}")
+    result_text.append(f"{safe_pct:.1f}%", style=f"bold {color}")
 
     console.print(Panel(result_text, border_style="blue"))
 
@@ -382,6 +387,7 @@ class WelcomeScreen(Screen):
             with Container():
                 yield Button("OpenRouter (Cloud-hosted models)", id="openrouter_button", variant="primary")
                 yield Button("Ollama (Local models)", id="ollama_button", variant="default")
+                yield Button("Mock (Testing models - no API/subprocess)", id="mock_button", variant="success")
 
             with Horizontal():
                 yield Button("Quit", id="quit_button", variant="error")
@@ -392,6 +398,9 @@ class WelcomeScreen(Screen):
             self.app.push_screen(ModelSelectionScreen())
         elif event.button.id == "ollama_button":
             self.app.selected_model_type = "ollama"
+            self.app.push_screen(ModelSelectionScreen())
+        elif event.button.id == "mock_button":
+            self.app.selected_model_type = "mock"
             self.app.push_screen(ModelSelectionScreen())
         elif event.button.id == "quit_button":
             self.app.exit()
@@ -427,13 +436,17 @@ class ModelSelectionScreen(Screen):
         if model_type == "openrouter":
             registry = OpenRouterModelRegistry()
             return registry.list_models()
-        else:  # ollama
+        elif model_type == "ollama":
             try:
                 temp_model = OllamaModelRegistry.create_model("temp")
                 models_list = temp_model.list_available_models()
                 return {model["name"]: f"{model.get('size', 'Unknown size')}" for model in models_list}
             except Exception:
                 return {}
+        elif model_type == "mock":
+            return MockModelRegistry.list_models()
+        else:
+            return {}
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         button_id = event.button.id
@@ -459,7 +472,7 @@ class MetricSelectionScreen(Screen):
 
             available_metrics = list_available_metrics()
 
-            with Container():
+            with ScrollableContainer():
                 # Display available metrics as buttons
                 with Vertical():
                     for name, description in available_metrics.items():
@@ -520,15 +533,12 @@ class DatasetSelectionScreen(Screen):
         with Vertical():
             yield Static("📁 Step 4: Choose Dataset", classes="title")
 
-            # Check for existing datasets
-            current_dir = Path.cwd()
-            json_files = list(current_dir.glob("*.json"))
-
-            if json_files:
-                options = [("create_new", "Create new sample dataset")] + \
-                         [(str(f), f"{f.name} ({f.stat().st_size} bytes)") for f in json_files]
-            else:
-                options = [("create_new", "Create new sample dataset")]
+            # Check for existing datasets in promptlib folder
+            promptlib_dir = Path("level3/datasets/promptlib")
+            json_files = []
+            
+            if promptlib_dir.exists():
+                json_files = list(promptlib_dir.glob("*.json"))
 
             with Container():
                 # Display dataset options as buttons
@@ -536,7 +546,12 @@ class DatasetSelectionScreen(Screen):
                     yield Button("Create new sample dataset", id="dataset_create_new", classes="dataset-button")
                     if json_files:
                         for f in json_files:
-                            yield Button(f"{f.name} ({f.stat().st_size} bytes)", id=f"dataset_{f.name}", classes="dataset-button")
+                            file_size = f.stat().st_size
+                            # Create valid ID by replacing dots and other invalid chars with underscores
+                            safe_id = f"dataset_{f.stem.replace('.', '_').replace('-', '_')}"
+                            yield Button(f"{f.name} ({file_size} bytes)", id=safe_id, classes="dataset-button")
+                    else:
+                        yield Static("No datasets found in level3/datasets/promptlib/", classes="description")
 
             # Sample count input (only shown when creating new)
             yield Static("Number of sample test cases:", id="sample_count_label")
@@ -572,15 +587,29 @@ class DatasetSelectionScreen(Screen):
             self.app.push_screen(EvaluationScreen())
         elif button_id == "dataset_create_new":
             self.app.selected_dataset_type = "create_new" 
-            self.app.dataset_path = None
+            self.app.dataset_path = "level3/datasets/promptlib/sample_dataset.json"
             self._show_sample_count_ui()
             self.notify("Selected: Create new sample dataset", severity="information")
         elif button_id.startswith("dataset_") and not button_id == "dataset_create_new":
-            dataset_name = button_id[8:]  # Remove "dataset_" prefix
-            self.app.selected_dataset_type = "existing"
-            self.app.dataset_path = dataset_name
-            self._hide_sample_count_ui()
-            self.notify(f"Selected dataset: {dataset_name}", severity="information")
+            # Extract filename from safe ID - need to map back to actual file
+            promptlib_dir = Path("level3/datasets/promptlib")
+            json_files = list(promptlib_dir.glob("*.json"))
+            
+            # Find the matching file based on the button ID
+            selected_file = None
+            for f in json_files:
+                safe_id = f"dataset_{f.stem.replace('.', '_').replace('-', '_')}"
+                if safe_id == button_id:
+                    selected_file = f
+                    break
+            
+            if selected_file:
+                self.app.selected_dataset_type = "existing"
+                self.app.dataset_path = str(selected_file)
+                self._hide_sample_count_ui()
+                self.notify(f"Selected dataset: {selected_file.name}", severity="information")
+            else:
+                self.notify("Could not find selected dataset!", severity="error")
 
     def _show_sample_count_ui(self):
         """Show sample count input for new dataset creation."""
@@ -598,6 +627,9 @@ class DatasetSelectionScreen(Screen):
 
     def _create_sample_dataset(self, path: str, num_samples: int):
         """Create a sample dataset."""
+        # Ensure the directory exists
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        
         test_cases = []
         for i in range(num_samples):
             test_cases.append({
@@ -661,14 +693,25 @@ Dataset: {self.app.dataset_path}
             if self.app.selected_model_type == "openrouter":
                 registry = OpenRouterModelRegistry()
                 model = registry.create_model(self.app.selected_model)
-            else:
+            elif self.app.selected_model_type == "ollama":
                 registry = OllamaModelRegistry()
                 model = registry.create_model(self.app.selected_model)
+            elif self.app.selected_model_type == "mock":
+                registry = MockModelRegistry()
+                model = registry.create_model(self.app.selected_model)
+            else:
+                raise ValueError(f"Unknown model type: {self.app.selected_model_type}")
 
             metrics = [create_metric(name) for name in self.app.selected_metrics]
 
             status_text.update("📁 Loading dataset...")
             progress_bar.update(progress=30)
+
+            # Handle dataset creation if needed
+            if self.app.selected_dataset_type == "create_new":
+                dataset_path = "level3/datasets/promptlib/sample_dataset.json"
+                self._create_sample_dataset(dataset_path, getattr(self.app, 'sample_count', 5))
+                self.app.dataset_path = dataset_path
 
             dataset_loader = DatasetLoader()
             test_cases = dataset_loader.load_dataset(self.app.dataset_path)
@@ -772,11 +815,15 @@ class ResultsScreen(Screen):
     def _generate_report(self):
         """Generate HTML report."""
         try:
-            output_file = f"interactive_report_{int(time.time())}.html"
+            from .reporting.generator import ReportGenerator
+            from .utils.results_config import get_results_config
+            
             with self.app.screen.status("Generating HTML report..."):
-                from .reporting.generator import ReportGenerator
+                results_config = get_results_config()
+                output_file = results_config.get_html_path(prefix="interactive_report")
+                
                 reporter = ReportGenerator()
-                reporter.generate_html_report(self.app.evaluation_results, output_file)
+                reporter.generate_html_report(self.app.evaluation_results, str(output_file))
 
             self.notify(f"Report generated: {output_file}", severity="information")
         except Exception as e:
