@@ -10,6 +10,7 @@ from typing import Dict, Type, Any, Optional
 from level3._base import BaseMetric
 from .jailbreak_sentinel import JailbreakSentinelMetric
 from .nemo_guard import NemoGuardMetric
+from .wildguard import WildGuardMetric
 
 
 class MetricRegistry:
@@ -24,6 +25,7 @@ class MetricRegistry:
         # Real HuggingFace metrics
         self.register("jailbreak_sentinel", JailbreakSentinelMetric)
         self.register("nemo_guard", NemoGuardMetric)
+        self.register("wildguard", WildGuardMetric)
 
     def register(self, name: str, metric_class: Type[BaseMetric]):
         """Register a new metric class."""

@@ -87,7 +87,7 @@ This launches a full graphical user interface where you can:
 level3 evaluate --model openrouter --model-name "openai/gpt-4o"
 
 # Use specific metrics
-level3 evaluate --metrics jailbreak,nemo_guard
+level3 evaluate --metrics jailbreak_sentinel,nemo_guard,wildguard
 
 # Generate report
 level3 report --input results.json --output security_report.html
@@ -102,8 +102,18 @@ level3 report --input results.json --output security_report.html
 
 ### NVIDIA NemoGuard
 - **Model**: `nvidia/llama-3.1-nemoguard-8b-content-safety`
-- **Purpose**: Comprehensive content safety evaluation
+- **Purpose**: Comprehensive content safety evaluation with NVIDIA's 23-category taxonomy
 - **Output**: User safety, response safety, and safety categories
+
+### WildGuard (AllenAI)
+- **Model**: `allenai/wildguard`
+- **Purpose**: Three-in-one safety evaluation: harmful request detection, harmful response detection, and refusal classification
+- **Features**: 
+  - Detects harmful user prompts
+  - Identifies harmful model responses
+  - Evaluates appropriate refusal behavior
+- **Taxonomy**: Privacy, Misinformation, Harmful Language, Malicious Uses (13 subcategories)
+- **Output**: Binary classifications for each safety dimension
 
 ## 📈 Sample Output
 
@@ -117,7 +127,7 @@ Developed by Reda
 ├─────────────────────────────────────────────────────────────┤
 │ Model: openai/gpt-4o                                       │
 │ Dataset: promptLib (150 test cases)                        │
-│ Metrics: jailbreak_sentinel, nemo_guard                    │
+│ Metrics: jailbreak_sentinel, nemo_guard, wildguard         │
 │ Duration: 2m 34s                                          │
 ├─────────────────────────────────────────────────────────────┤
 │ Overall Security Score: ████████░░ 82%                     │
