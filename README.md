@@ -163,6 +163,16 @@ level3-security-eval/
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
+## ⚠️ Important - Not Ready for Production
+
+This repository is part of the Arkadia LEVEL3 Program in collaboration with the Aleph Alpha project. It is a research and prototype implementation intended for evaluation and experimentation only. Do NOT use this code as-is in production systems.
+
+- Do not commit API keys, secrets, or credentials to this repository. Use environment variables or a secret manager.
+- The project includes example configuration in `.env.example` with placeholders only.
+- We provide a simple secret-scanning script and a GitHub Actions workflow to help prevent accidental commits of sensitive data. See `scripts/scan_secrets.py` and `.github/workflows/secret-scan.yml`.
+
+If you intend to use this in a production environment, please open an issue so we can coordinate security reviews and hardening work.
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

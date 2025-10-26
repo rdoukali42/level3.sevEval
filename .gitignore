@@ -175,3 +175,15 @@ evaluation_outputs/
 
 # Demo files that might contain sensitive data
 demo_outputs/
+# Generated HTML reports (examples)
+security_report.html
+nemo.html
+new.html
+"""
+Ignore test directories and testing artifacts for public release
+"""
+tests/
+testing_benchmarking/
+.pytest_cache/
+htmlcov/
+.coverage
