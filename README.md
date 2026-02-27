@@ -1,56 +1,46 @@
-# LEVEL3 Security Evaluation Framework
+# LEVEL3 - LLM Security Evaluation Framework
 
-**By Arkadia** - In collaboration with **AlephAlpha** Company
-**Developed by Reda**
+> **Arkadia LEVEL3 Program - In collaboration with AlephAlpha**
+> This project was developed as part of the **Arkadia LEVEL3 AI Security Track** in collaboration with **AlephAlpha**.
+> Not intended for production use as-is.
 
-[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+A security evaluation framework for LLMs focused on jailbreak resistance, prompt injection detection, and content safety. Runs a security dataset through a target model and scores responses using specialized safety classifiers. Supports OpenRouter-hosted models and local Ollama instances. Outputs a structured HTML report with per-category scores and failure breakdowns.
 
-LEVEL3 is a specialized security evaluation framework for Large Language Models, focusing on prompt injection, jailbreak resistance, and content safety. Built as a lightweight alternative to complex evaluation frameworks, LEVEL3 provides targeted security assessments with an intuitive CLI interface.
+## Project Structure
 
-## 🚀 Features
+```
+level3-security-eval/
+├── level3/
+│   ├── cli.py              # Command-line interface
+│   ├── evaluator.py        # Core evaluation engine
+│   ├── metrics/
+│   │   ├── jailbreak_sentinel.py
+│   │   └── nemo_guard.py
+│   ├── datasets/           # Security test datasets
+│   ├── reporting/          # HTML report generation
+│   └── utils/
+├── tests/
+├── examples/
+└── scripts/
+    └── scan_secrets.py
+```
 
-- **🔒 Security-First**: Specialized metrics for jailbreak detection and content safety
-- **🤖 Model Support**: OpenRouter (GPT-4.1) and Ollama local models
-- **📊 Rich Reporting**: Beautiful charts, tables, and visual security assessments
-- **🛠️ Extensible**: Easy to add new metrics and models
-- **�️ Mouse-Driven GUI**: Interactive graphical interface with clickable buttons and dropdowns
-- **🎮 Textual TUI Framework**: Modern terminal user interface with mouse support
-- **📊 Rich Reporting**: Beautiful charts, tables, and visual security assessments
-- **🛠️ Extensible**: Easy to add new metrics and models
-- **📁 Dataset Integration**: Works with promptLib security test datasets
-
-## 🏗️ Installation
+## How to Run
 
 ```bash
-# Clone the repository
 git clone https://github.com/rdoukali42/level3-security-eval.git
 cd level3-security-eval
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Or install in development mode
-pip install -e .
 ```
 
-## ⚙️ Configuration
-
-Set up your API keys:
+Set up API keys:
 
 ```bash
-# For OpenRouter models
 export OPENROUTER_API_KEY="your-openrouter-api-key"
-
-# For HuggingFace models (optional, for enhanced metrics)
-export HF_TOKEN="your-huggingface-token"
+export HF_TOKEN="your-huggingface-token"   # optional
 ```
 
-## 📊 Quick Start
-
-### 1. Add Your Dataset
-
-Place your security test cases in `level3/datasets/promptLib/`:
+Add your dataset to `level3/datasets/promptLib/`:
 
 ```json
 [
@@ -63,130 +53,37 @@ Place your security test cases in `level3/datasets/promptLib/`:
 ]
 ```
 
-### 2. Run Evaluation
+Run evaluation:
 
-#### Interactive GUI Mode (Recommended for beginners)
 ```bash
-# Mouse-driven graphical interface
+# Interactive TUI
 level3 interactive
-```
-This launches a full graphical user interface where you can:
-- **🖱️ Click** to select model types (OpenRouter/Ollama)
-- **🖱️ Click** to choose specific models from dropdowns
-- **🖱️ Click** to add/remove security metrics
-- **🖱️ Click** to create datasets or select existing files
-- **🖱️ Click** 'Start Evaluation' to run security tests
-- **🖱️ View** results with clickable report generation
-- **🖱️ Navigate** between screens with button clicks
 
-**Built with Textual TUI Framework** for mouse support, progress bars, and intuitive interactions.
-
-### Command Line Mode (Advanced users)
-```bash
-# Evaluate specific model
+# CLI
 level3 evaluate --model openrouter --model-name "openai/gpt-4o"
-
-# Use specific metrics
 level3 evaluate --metrics jailbreak_sentinel,nemo_guard,wildguard
 
 # Generate report
 level3 report --input results.json --output security_report.html
 ```
 
-## 🔧 Core Metrics
-
-### Jailbreak Sentinel
-- **Model**: `qualifire/prompt-injection-jailbreak-sentinel-v2`
-- **Purpose**: Detects prompt injection and jailbreak attempts
-- **Output**: 0-1 score (higher = more likely jailbreak)
-
-### NVIDIA NemoGuard
-- **Model**: `nvidia/llama-3.1-nemoguard-8b-content-safety`
-- **Purpose**: Comprehensive content safety evaluation with NVIDIA's 23-category taxonomy
-- **Output**: User safety, response safety, and safety categories
-
-### WildGuard (AllenAI)
-- **Model**: `allenai/wildguard`
-- **Purpose**: Three-in-one safety evaluation: harmful request detection, harmful response detection, and refusal classification
-- **Features**: 
-  - Detects harmful user prompts
-  - Identifies harmful model responses
-  - Evaluates appropriate refusal behavior
-- **Taxonomy**: Privacy, Misinformation, Harmful Language, Malicious Uses (13 subcategories)
-- **Output**: Binary classifications for each safety dimension
-
-## 📈 Sample Output
+Sample output:
 
 ```
-LEVEL3 Security Evaluation Framework
-By Arkadia - In collaboration with AlephAlpha Company
-Developed by Reda
-
 ┌─────────────────────────────────────────────────────────────┐
 │                    Security Assessment                      │
 ├─────────────────────────────────────────────────────────────┤
 │ Model: openai/gpt-4o                                       │
 │ Dataset: promptLib (150 test cases)                        │
 │ Metrics: jailbreak_sentinel, nemo_guard, wildguard         │
-│ Duration: 2m 34s                                          │
 ├─────────────────────────────────────────────────────────────┤
 │ Overall Security Score: ████████░░ 82%                     │
-├─────────────────────────────────────────────────────────────┤
-│ Jailbreak Resistance: ██████████ 95%                       │
-│ Content Safety: ███████░░░ 78%                             │
-│ PII Protection: ████████░░ 85%                             │
+│ Jailbreak Resistance:   ██████████ 95%                     │
+│ Content Safety:         ███████░░░ 78%                     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 🏛️ Architecture
-
-```
-level3-security-eval/
-├── level3/
-│   ├── cli.py              # Command-line interface
-│   ├── evaluator.py        # Core evaluation engine
-│   ├── models/             # Model implementations
-│   │   ├── openrouter.py   # OpenRouter integration
-│   │   └── ollama.py       # Ollama integration
-│   ├── metrics/            # Security metrics
-│   │   ├── jailbreak_sentinel.py
-│   │   └── nemo_guard.py
-│   ├── datasets/           # Dataset handling
-│   ├── reporting/          # Report generation
-│   └── utils/              # Utilities
-├── tests/                  # Unit tests
-├── examples/               # Usage examples
-└── docs/                   # Documentation
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-## ⚠️ Important - Not Ready for Production
-
-This repository is part of the Arkadia LEVEL3 Program in collaboration with the Aleph Alpha project. It is a research and prototype implementation intended for evaluation and experimentation only. Do NOT use this code as-is in production systems.
-
-- Do not commit API keys, secrets, or credentials to this repository. Use environment variables or a secret manager.
-- The project includes example configuration in `.env.example` with placeholders only.
-- We provide a simple secret-scanning script and a GitHub Actions workflow to help prevent accidental commits of sensitive data. See `scripts/scan_secrets.py` and `.github/workflows/secret-scan.yml`.
-
-If you intend to use this in a production environment, please open an issue so we can coordinate security reviews and hardening work.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Arkadia** for the vision and support
-- **AlephAlpha Company** for collaboration and resources
-- **HuggingFace** for the amazing model ecosystem
-- **OpenRouter** for accessible model APIs
-
 ---
 
-**LEVEL3 Security Evaluation Framework**
-**By Arkadia** - In collaboration with **AlephAlpha** Company
-**Developed by Reda**</content>
-<parameter name="filePath">/home/reda/Desktop/seceval/level3-security-eval/README.md
+**Reda Doukali**
+[github.com/rdoukali42](https://github.com/rdoukali42) | [linkedin.com/in/reda-doukali](https://linkedin.com/in/reda-doukali)
